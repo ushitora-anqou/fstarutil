@@ -1,0 +1,13 @@
+lib/debug
+lib/release
+Debug
+*.suo
+*.user
+obj
+bin
+*.exe
+parse.fs
+parse.fsi
+lex.fs
+basic
+parser

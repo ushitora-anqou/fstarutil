@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="basic/basetypes-fake.fs" />
+    <Compile Include="basic/prims-fake.fs" />
+    <Compile Include="basic/st-fake.fs" />
+    <Compile Include="basic/exn-fake.fs" />
+    <Compile Include="basic/all-fake.fs" />
+    <Compile Include="basic/mul-fake.fs" />
+    <Compile Include="basic/fs/char.fsi" />
+    <Compile Include="basic/fs/char.fs" />
+    <Compile Include="basic/boot/FStar.BigInt.fsi" />
+    <Compile Include="basic/boot/NotFStar.BigInt.fs" />
+    <Compile Include="basic/boot/FStar.String.fsi" />
+    <Compile Include="basic/boot/FStar.String.fs" />
+    <Compile Include="basic/boot/FStar.List.fsi" />
+    <Compile Include="basic/boot/FStar.List.fs" />
+    <Compile Include="basic/boot/FStar.Util.fsi" />
+    <Compile Include="basic/boot/NotFStar.Util.fs" />
+    <Compile Include="basic/boot/FStar.Compiler.Bytes.fsi" />
+    <Compile Include="basic/boot/NotFStar.Compiler.Bytes.fs" />
+    <Compile Include="basic/boot/FStar.Dyn.fsi" />
+    <Compile Include="basic/boot/NotFStar.Dyn.fs" />
+    <Compile Include="basic/boot/FStar.StringBuffer.fsi" />
+    <Compile Include="basic/boot/FStar.StringBuffer.fs" />
+    <Compile Include="basic/FStar.Platform.fsi" />
+    <Compile Include="basic/NotFStar.Platform.fs" />
+    <Compile Include="basic/FStar.Thunk.fsi" />
+    <Compile Include="basic/FStar.Thunk.fs" />
+    <Compile Include="basic/FStar.Common.fs" />
+    <Compile Include="basic/FStar.Getopt.fsi" />
+    <Compile Include="basic/NotFStar.Getopt.fs" />
+    <Compile Include="basic/FStar.Options.fsi" />
+    <Compile Include="basic/FStar.Options.fs" />
+    <Compile Include="basic/FStar.Range.fsi" />
+    <Compile Include="basic/FStar.Range.fs" />
+    <Compile Include="basic/FStar.Ident.fsi" />
+    <Compile Include="basic/FStar.Ident.fs" />
+    <Compile Include="basic/FStar.Unionfind.fsi" />
+    <Compile Include="basic/NotFStar.Unionfind.fs" />
+    <Compile Include="basic/FStar.Const.fs" />
+    <Compile Include="basic/FStar.Order.fs" />
+    <Compile Include="basic/FStar.Errors.fs" />
+    <Compile Include="basic/FStar.Profiling.fsi" />
+    <Compile Include="basic/FStar.Profiling.fs" />
+    <Compile Include="basic/FStar.Version.fsi" />
+    <Compile Include="basic/FStar.Version.fs" />
+    <Content Include="basic/packages.config" />
+
+
+    <FsLex Include="parser/lex.fsl">
+      <OtherFlags>--unicode</OtherFlags>
+    </FsLex>
+    <Compile Include="parser/FStar.Parser.Const.fs" />
+    <Compile Include="parser/FStar.Parser.AST.fs" />
+    <Compile Include="parser/parseutil.fs" />
+    <FsYacc Include="parser/parse.fsy">
+      <OtherFlags>--module FStar.Parser.Parse --open FStar.Parser.AST</OtherFlags>
+    </FsYacc>
+    <Compile Include="parse.fs" />
+    <Compile Include="parser/FStar.Parser.Lexhelp.fs" />
+    <Compile Include="lex.fs" />
+    <Compile Include="parser/FStar.Parser.ParseIt.fsi" />
+    <Compile Include="parser/NotFStar.Parser.ParseIt.fs" />
+    <Compile Include="parser/FStar.Parser.Driver.fs" />
+
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Compatibility.OCaml" Version="0.1.14" />
+    <PackageReference Include="FsLexYacc" Version="10.2.0" />
+  </ItemGroup>
+
+</Project>
