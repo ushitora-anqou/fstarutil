@@ -1,0 +1,3 @@
+[submodule "FStar"]
+	path = FStar
+	url = https://github.com/ushitora-anqou/FStar.git
