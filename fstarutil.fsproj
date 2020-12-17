@@ -69,10 +69,12 @@
     <Compile Include="parser/NotFStar.Parser.ParseIt.fs" />
     <Compile Include="parser/FStar.Parser.Driver.fs" />
 
+    <Compile Include="RewriteZ3rlimit.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommandLineParser.FSharp" Version="2.8.0" />
     <PackageReference Include="FSharp.Compatibility.OCaml" Version="0.1.14" />
     <PackageReference Include="FsLexYacc" Version="10.2.0" />
   </ItemGroup>

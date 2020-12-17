@@ -5,6 +5,7 @@ open System.IO
 open System.Diagnostics
 open FStar.Parser
 open FStar.Range
+open CommandLine
 
 (*
 type callgraph =
@@ -63,170 +64,50 @@ and createCGTerm (toplevel: string) (cg: callgraph) (tm: AST.term) =
     | _ -> cg
 *)
 
-let filterMap f l =
-    let rec aux res =
-        function
-        | [] -> res
-        | x :: xs ->
-            match f x with
-            | None -> aux res xs
-            | Some v -> aux (v :: res) xs
+[<Verb("callgraph", HelpText = "Print callgraph.")>]
+type CallgraphCLI = { dummy: bool }
 
-    aux [] l
+[<Verb("rewrite-z3rlimit", HelpText = "Add file contents to the index.")>]
+type RewriteZ3rlimitCLI =
+    { [<Option("min", HelpText = "Use minimum possible z3rlimit.")>]
+      min: bool
+      [<Option('x', HelpText = "Use possible z3rlimit multiple of arg.")>]
+      mult: int option
+      [<Option(HelpText = "Prints all messages to standard output.")>]
+      verbose: bool
+      [<Value(0, MetaName = "filename", HelpText = "File path to read.")>]
+      fileName: string }
 
-type Z3rlimitUse =
-    { pushOpt: string list
-      initialZ3rlimit: int
-      z3rlimitIdx: int
-      pushOptRange: FStar.Range.range
-      affectedIds: string list }
-
-let rec collectZ3rlimitUses (decls: AST.decl list) modName res =
-    match decls with
-    | [] -> res
-    | decl :: rest ->
-        match decl.d with
-        | AST.TopLevelModule id -> collectZ3rlimitUses rest (FStar.Ident.string_of_lid id) res
-        | AST.Pragma pr ->
-            match pr with
-            | AST.PushOptions opt ->
-                match opt with
-                | None -> failwith "yo"
-                | Some src ->
-                    let opts =
-                        src.Split ' '
-                        |> List.ofArray
-                        |> List.map (fun s -> s.Trim())
-
-                    match List.tryFindIndex (fun s -> s = "--z3rlimit") opts with
-                    | None -> collectZ3rlimitUses rest modName res
-                    | Some i ->
-                        let range = decl.drange
-                        let rlimit = int <| List.nth opts (i + 1)
-
-                        let ids =
-                            match rest with
-                            | { d = AST.Val (id, _) } :: _ -> Some [ FStar.Ident.string_of_id id ]
-                            | { d = AST.TopLevelLet (_, l) } :: _ ->
-                                Some
-                                <| filterMap (fun (p: AST.pattern, _) ->
-                                    match p.pat with
-                                    | AST.PatApp ({ pat = AST.PatVar (id, _) }, _) -> Some(FStar.Ident.string_of_id id)
-                                    | _ -> None) l
-                            | _ -> None
-
-                        match ids with
-                        | None
-                        | Some [] -> collectZ3rlimitUses rest modName res
-                        | Some ids ->
-                            let newEntry =
-                                { pushOpt = opts
-                                  initialZ3rlimit = rlimit
-                                  z3rlimitIdx = i + 1
-                                  pushOptRange = range
-                                  affectedIds = List.map (fun id -> sprintf "%s.%s" modName id) ids }
-
-                            collectZ3rlimitUses rest modName (newEntry :: res)
-            | _ -> collectZ3rlimitUses rest modName res
-        | _ -> collectZ3rlimitUses rest modName res
-
-(*
-let collectPushOptionsZ3rlimit (decl: AST.decl) =
-    match decl.d with
-    | AST.Pragma pr ->
-        match pr with
-        | AST.PushOptions opt ->
-            match opt with
-            | Some src ->
-                let opts =
-                    src.Split ' '
-                    |> List.ofArray
-                    |> List.map (fun s -> s.Trim())
-
-                match List.tryFindIndex (fun s -> s = "--z3rlimit") opts with
-                | Some i ->
-                    let range = decl.drange
-                    let rlimit = int <| List.nth opts (i + 1)
-                    Some(opts, i + 1, rlimit, range)
-                | None -> None
-            | None -> None
-        | _ -> None
-    | _ -> None
-*)
-
-// (rlimitBg, rlimitEnd]
-let rec searchBestZ3rlimit u rlimitBg rlimitEnd =
-    let fileName = FStar.Range.file_of_range u.pushOptRange
-
-    let wd =
-        Path.GetDirectoryName(Path.GetFullPath(fileName))
-
-    let rewriteZ3rlimit newRlimit =
-        let newOptions =
-            u.pushOpt
-            |> List.mapi (fun i opt -> if i = u.z3rlimitIdx then string newRlimit else opt)
-            |> Array.ofList
-            |> String.concat " "
-
-        let newLine =
-            sprintf "#push-options \"%s\"" newOptions
-
-        let lineno =
-            (u.pushOptRange |> start_of_range |> line_of_pos)
-            - 1
-
-        eprintfn "### Rewriting %s(%d)" fileName lineno
-        eprintfn "### \t\"%s\" => \"%s\"" (String.concat " " u.pushOpt) newOptions
-
-        let lines =
-            File.ReadAllLines(fileName)
-            |> Array.mapi (fun i line -> if i = lineno then newLine else line)
-
-        use file = new StreamWriter(fileName)
-        Array.iter (fun (l: string) -> file.WriteLine(l)) lines
-
-    let runFStar admitExcept =
-        let pi =
-            new ProcessStartInfo(FileName = "fstar.exe", WorkingDirectory = wd)
-
-        pi.ArgumentList.Add("--z3refresh")
-        pi.ArgumentList.Add("--query_stats")
-        pi.ArgumentList.Add("--admit_except")
-        pi.ArgumentList.Add(admitExcept)
-        pi.ArgumentList.Add(Path.GetFileName(fileName))
-
-        use fstar = Process.Start(pi)
-        eprintfn "### Running F* for %s" admitExcept
-        fstar.WaitForExit()
-        fstar.ExitCode
-
-    if rlimitEnd - rlimitBg <= 1 then
-        rewriteZ3rlimit rlimitEnd
-    else
-        let newRlimit = rlimitBg + (rlimitEnd - rlimitBg) / 2
-        rewriteZ3rlimit newRlimit
-
-        let ok =
-            List.forall (fun id -> runFStar id = 0) u.affectedIds
-
-        if ok then
-            eprintfn "### \tOK"
-            searchBestZ3rlimit u rlimitBg newRlimit
-        else
-            eprintfn "### \tNG"
-            searchBestZ3rlimit u newRlimit rlimitEnd
 
 [<EntryPoint>]
-let main argv =
+let main args =
     try
-        let filename = argv.[0]
-        let ast, _ = FStar.Parser.Driver.parse_file filename
+        let result =
+            Parser.Default.ParseArguments<CallgraphCLI, RewriteZ3rlimitCLI> args
 
-        match ast with
-        | AST.Interface _ -> failwith "yep"
-        | AST.Module (id, lst) ->
-            collectZ3rlimitUses lst "" []
-            |> List.iter (fun u -> searchBestZ3rlimit u (-1) u.initialZ3rlimit)
-    with err -> printfn "%A" err
+        match result with
+        | :? (CommandLine.Parsed<obj>) as command ->
+            match command.Value with
+            | :? CallgraphCLI as opts -> 0
+            | :? RewriteZ3rlimitCLI as opts ->
+                let calcMethod = RewriteZ3rlimit.Multiple 20
 
-    0 // return an integer exit code
+                let calcMethod =
+                    if opts.min then
+                        RewriteZ3rlimit.Min
+                    else
+                        match opts.mult with
+                        | Some n -> RewriteZ3rlimit.Multiple n
+                        | None -> calcMethod
+
+                RewriteZ3rlimit.doRewrite ({ calcMethod = calcMethod }) opts.fileName
+                0
+
+        | :? (CommandLine.NotParsed<obj>) as command ->
+            match Seq.item 0 command.Errors with
+            | :? VersionRequestedError
+            | :? HelpRequestedError -> 0
+            | _ -> failwith "Invalid command-line arguments"
+    with err ->
+        eprintfn "%A" err
+        1
