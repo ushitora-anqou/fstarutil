@@ -9,5 +9,3 @@ bin
 parse.fs
 parse.fsi
 lex.fs
-basic
-parser
